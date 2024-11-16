@@ -1,20 +1,14 @@
 from fastapi import FastAPI, HTTPException, Depends
-from schemas import RegisterRequest, TokenResponse
+from schemas import RegisterRequest, LoginRequest, Token
 from models import User
 from database import SessionLocal, get_db
-from crud import hash_password, create_jwt_token
-from fastapi.security import OAuth2PasswordRequestForm
-from datetime import datetime, timedelta
-from crud import SECRET_KEY
+from crud import hash_password, create_jwt_token, verify_password, get_user_by_email
 from sqlalchemy.orm import Session
-from passlib.context import CryptContext
-from jose import jwt
 
 # Инициализация FastAPI
 app = FastAPI()
 
 # Определение алгоритма хэширования паролей
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 
 
@@ -42,29 +36,24 @@ async def register_user(request: RegisterRequest):
     return {"access_token": token, "token_type": "bearer"}
 
 
-
-@app.post("/auth/login", response_model=TokenResponse)
+@app.post("/auth/login", response_model=Token)
 def login(
-    form_data: OAuth2PasswordRequestForm = Depends(),  # автоматическое получение данных из формы
-    db: Session = Depends(get_db)  # сессия базы данных
+    login_request: LoginRequest,  # Используем схему LoginRequest для валидации
+    db: Session = Depends(get_db)  # Сессия базы данных
 ):
-    # Находим пользователя по email (username в форме — это email)
-    user = db.query(User).filter(User.email == form_data.username).first()
+    # Находим пользователя по email
+    user = get_user_by_email(db, login_request.email)
     if not user:
         raise HTTPException(status_code=400, detail="Неверный email или пароль")
 
     # Проверяем, что введённый пароль совпадает с хранимым хэшем
-    if not pwd_context.verify(form_data.password, user.hashed_password):
+    if not verify_password(login_request.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Неверный email или пароль")
 
     # Генерация JWT токена
-    token_payload = {
-        "user_id": user.id,  # идентификатор пользователя
-        "email": user.email,  # email пользователя
-        "exp": datetime.utcnow() + timedelta(hours=24)  # срок действия токена (24 часа)
-    }
-    token = jwt.encode(token_payload, SECRET_KEY, algorithm=ALGORITHM)  # подпись токена
+    token = create_jwt_token(user.id, user.email)
 
-    # Возвращаем токен клиенту
+    # Возвращаем токен
     return {"access_token": token, "token_type": "bearer"}
+
 
