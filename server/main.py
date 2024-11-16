@@ -1,15 +1,15 @@
 from fastapi import FastAPI, HTTPException, Depends
-from schemas import RegisterRequest, LoginRequest, Token
+from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate
 from models import User
 from database import SessionLocal, get_db
-from crud import hash_password, create_jwt_token, verify_password, get_user_by_email
+from crud import hash_password, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
+    delete_referral_code, get_current_user
 from sqlalchemy.orm import Session
 
 # Инициализация FastAPI
 app = FastAPI()
 
 # Определение алгоритма хэширования паролей
-ALGORITHM = "HS256"
 
 
 # Endpoint для регистрации пользователя
@@ -57,3 +57,29 @@ def login(
     return {"access_token": token, "token_type": "bearer"}
 
 
+
+
+
+@app.post("/referral-code/create")
+def create_referral(
+    referral_data: ReferralCodeCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
+):
+    # Логика создания реферального кода
+    referral_code = create_referral_code(
+        db,
+        current_user.id,
+        referral_data.code,
+        referral_data.expiration_date
+    )
+    return {"message": "Реферальный код успешно создан", "code": referral_code.code, "expiration_date": referral_code.expiration_date}
+
+# Эндпоинт для удаления реферального кода
+@app.delete("/referral-code/delete")
+def delete_referral(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
+):
+    # Логика удаления реферального кода
+    return delete_referral_code(db, current_user.id)
