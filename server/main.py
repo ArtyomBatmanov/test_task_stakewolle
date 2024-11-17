@@ -1,5 +1,5 @@
 from typing import List
-
+from fastapi.openapi.utils import get_openapi
 from fastapi import FastAPI, HTTPException, Depends
 from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, \
     RegisterWithReferralCodeRequest, UserBase
@@ -14,12 +14,32 @@ from sqlalchemy.orm import Session
 app = FastAPI()
 
 
-# Определение алгоритма хэширования паролей
+# Кастомное OpenAPI
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Stakewolle API",
+        version="1.0.0",
+        description="Документация для API тестового задания.",
+        routes=app.routes,
+    )
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+
+app.openapi = custom_openapi
 
 
 # Endpoint для регистрации пользователя
-@app.post("/auth/register")
+@app.post("/auth/register", tags=["Authentication"], summary="Регистрация пользователя")
 async def register_user(request: RegisterRequest):
+    """
+    Регистрирует нового пользователя.
+
+    - **email**: Электронная почта пользователя.
+    - **password**: Пароль пользователя.
+    """
     session = SessionLocal()
     user = session.query(User).filter(User.email == request.email).first()
 
@@ -41,34 +61,41 @@ async def register_user(request: RegisterRequest):
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.post("/auth/login", response_model=Token)
+@app.post("/auth/login", response_model=Token, tags=["Authentication"], summary="Вход в систему")
 def login(
-        login_request: LoginRequest,  # Используем схему LoginRequest для валидации
-        db: Session = Depends(get_db)  # Сессия базы данных
+        login_request: LoginRequest,
+        db: Session = Depends(get_db)
 ):
-    # Находим пользователя по email
+    """
+    Авторизует пользователя и возвращает JWT токен.
+
+    - **email**: Электронная почта пользователя.
+    - **password**: Пароль пользователя.
+    """
     user = get_user_by_email(db, login_request.email)
     if not user:
         raise HTTPException(status_code=400, detail="Неверный email или пароль")
 
-    # Проверяем, что введённый пароль совпадает с хранимым хэшем
     if not verify_password(login_request.password, user.password_hash):
         raise HTTPException(status_code=400, detail="Неверный email или пароль")
 
-    # Генерация JWT токена
     token = create_jwt_token(user.id, user.email)
 
-    # Возвращаем токен
     return {"access_token": token, "token_type": "bearer"}
 
 
-@app.post("/referral-code/create")
+@app.post("/referral-code/create", tags=["Referrals"], summary="Создать реферальный код")
 def create_referral(
         referral_data: ReferralCodeCreate,
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
+        current_user: User = Depends(get_current_user)
 ):
-    # Логика создания реферального кода
+    """
+    Создает новый реферальный код для текущего пользователя.
+
+    - **code**: Уникальный код.
+    - **expiration_date**: Дата истечения срока действия кода.
+    """
     referral_code = create_referral_code(
         db,
         current_user.id,
@@ -79,41 +106,51 @@ def create_referral(
             "expiration_date": referral_code.expiration_date}
 
 
-# Эндпоинт для удаления реферального кода
-@app.delete("/referral-code/delete")
+@app.delete("/referral-code/delete", tags=["Referrals"], summary="Удалить реферальный код")
 def delete_referral(
         db: Session = Depends(get_db),
-        current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
+        current_user: User = Depends(get_current_user)
 ):
-    # Логика удаления реферального кода
+    """
+    Удаляет реферальный код текущего пользователя.
+    """
     return delete_referral_code(db, current_user.id)
 
 
-@app.get("/referral-code/{email}", response_model=ReferralCodeResponse)
+@app.get("/referral-code/{email}", response_model=ReferralCodeResponse, tags=["Referrals"],
+         summary="Получить реферальный код")
 def get_referral_code(email: str, db: Session = Depends(get_db)):
-    # Получаем реферальный код по email
+    """
+    Возвращает реферальный код по указанному email.
+
+    - **email**: Электронная почта пользователя.
+    """
     referral_code = get_referral_code_by_email(db, email)
     if not referral_code:
         raise HTTPException(status_code=404, detail="Реферальный код не найден")
 
-    # Возвращаем найденный реферальный код
     return {
         "code": referral_code.code,
         "expiration_date": referral_code.expiration_date.date()
     }
 
 
-@app.post("/register-with-referral")
+@app.post("/register-with-referral", tags=["Referrals"], summary="Регистрация с реферальным кодом")
 def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session = Depends(get_db)):
-    # Проверяем реферальный код, если он указан
+    """
+    Регистрирует пользователя по реферальному коду.
+
+    - **email**: Электронная почта пользователя.
+    - **password**: Пароль пользователя.
+    - **referral_code**: Код реферала (опционально).
+    """
     referrer_id = None
     if request.referral_code:
         referral = get_valid_referral_code(db, request.referral_code)
         if not referral:
             raise HTTPException(status_code=400, detail="Недействительный или истекший реферальный код")
-        referrer_id = referral.user_id  # ID пользователя, связанного с реферальным кодом
+        referrer_id = referral.user_id
 
-    # Регистрируем пользователя
     new_user = create_user_with_referral(
         db=db,
         email=request.email,
@@ -124,9 +161,14 @@ def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session
     return {"message": "Регистрация успешна", "user_id": new_user.id}
 
 
-@app.get("/referrals/{referrer_id}", response_model=List[UserBase])
+@app.get("/referrals/{referrer_id}", response_model=List[UserBase], tags=["Referrals"], summary="Получить рефералов")
 def get_referrals(referrer_id: int, db: Session = Depends(get_db)):
+    """
+    Возвращает список пользователей, которые зарегистрировались по реферальному коду указанного пользователя.
+
+    - **referrer_id**: ID реферера.
+    """
     referrals = get_referrals_by_referrer_id(db, referrer_id)
     if not referrals:
-        raise HTTPException(status_code=404, detail="No referrals found for this referrer_id")
+        raise HTTPException(status_code=404, detail="Рефералы не найдены")
     return referrals
