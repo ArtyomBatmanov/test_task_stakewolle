@@ -34,13 +34,12 @@
 - запустите контейнер docker compose up
 
 ### Функционал проекта:
-``
-GET /docs - получить документацию
-POST /auth/register - регистрация нового пользователя
-POST /auth/login - авторизаиця пользователя
-POST /referral-code/create - создание реферального кода
-DELETE /referral-code/delete - удаление реферального кода
-GET /referral-code/{email} - получить реферальный код по email
-POST /register-with-referral - регистрация пользователя по реферальному коду
-GET /referrals/{referrer_id} - получить список пользователей которые зарегестрировались по реферальному коду
-``
+- GET /docs - получить документацию
+- POST /auth/register - регистрация нового пользователя
+- POST /auth/login - авторизаиця пользователя
+- POST /referral-code/create - создание реферального кода
+- DELETE /referral-code/delete - удаление реферального кода
+- GET /referral-code/{email} - получить реферальный код по email
+- POST /register-with-referral - регистрация пользователя по реферальному коду
+- GET /referrals/{referrer_id} - получить список пользователей которые зарегестрировались по реферальному коду
+
