@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from datetime import datetime
+from datetime import datetime, date
 
 
 # Pydantic модель для запроса регистрации
@@ -24,3 +24,12 @@ class ReferralCodeCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReferralCodeResponse(BaseModel):
+    code: str
+    expiration_date: date
+
+    class Config:
+        from_attributes = True
+

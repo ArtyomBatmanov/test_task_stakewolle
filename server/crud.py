@@ -12,14 +12,11 @@ from typing import Optional
 from database import get_db
 from jose import JWTError, jwt
 
-
 load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ALGORITHM = "HS256"
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
-
-
 
 
 # Функция для получения текущего пользователя
@@ -48,6 +45,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
         raise credentials_exception
 
     return user
+
 
 # Функция для хеширования пароля
 def hash_password(password: str) -> str:
@@ -110,3 +108,14 @@ def delete_referral_code(db: Session, user_id: int):
     db.delete(active_code)
     db.commit()
     return {"message": "Реферальный код успешно удалён"}
+
+
+def get_referral_code_by_email(db: Session, email: str):
+    # Найти пользователя по email
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        return None  # Если пользователя нет, возвращаем None
+
+    # Найти активный реферальный код для найденного пользователя
+    referral_code = db.query(ReferralCode).filter(ReferralCode.user_id == user.id).first()
+    return referral_code

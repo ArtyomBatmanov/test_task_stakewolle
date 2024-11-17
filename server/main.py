@@ -1,13 +1,14 @@
 from fastapi import FastAPI, HTTPException, Depends
-from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate
+from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse
 from models import User
 from database import SessionLocal, get_db
 from crud import hash_password, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
-    delete_referral_code, get_current_user
+    delete_referral_code, get_current_user, get_referral_code_by_email
 from sqlalchemy.orm import Session
 
 # Инициализация FastAPI
 app = FastAPI()
+
 
 # Определение алгоритма хэширования паролей
 
@@ -38,8 +39,8 @@ async def register_user(request: RegisterRequest):
 
 @app.post("/auth/login", response_model=Token)
 def login(
-    login_request: LoginRequest,  # Используем схему LoginRequest для валидации
-    db: Session = Depends(get_db)  # Сессия базы данных
+        login_request: LoginRequest,  # Используем схему LoginRequest для валидации
+        db: Session = Depends(get_db)  # Сессия базы данных
 ):
     # Находим пользователя по email
     user = get_user_by_email(db, login_request.email)
@@ -57,14 +58,11 @@ def login(
     return {"access_token": token, "token_type": "bearer"}
 
 
-
-
-
 @app.post("/referral-code/create")
 def create_referral(
-    referral_data: ReferralCodeCreate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
+        referral_data: ReferralCodeCreate,
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
 ):
     # Логика создания реферального кода
     referral_code = create_referral_code(
@@ -73,13 +71,29 @@ def create_referral(
         referral_data.code,
         referral_data.expiration_date
     )
-    return {"message": "Реферальный код успешно создан", "code": referral_code.code, "expiration_date": referral_code.expiration_date}
+    return {"message": "Реферальный код успешно создан", "code": referral_code.code,
+            "expiration_date": referral_code.expiration_date}
+
 
 # Эндпоинт для удаления реферального кода
 @app.delete("/referral-code/delete")
 def delete_referral(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
+        db: Session = Depends(get_db),
+        current_user: User = Depends(get_current_user)  # Получаем текущего пользователя
 ):
     # Логика удаления реферального кода
     return delete_referral_code(db, current_user.id)
+
+
+@app.get("/referral-code/{email}", response_model=ReferralCodeResponse)
+def get_referral_code(email: str, db: Session = Depends(get_db)):
+    # Получаем реферальный код по email
+    referral_code = get_referral_code_by_email(db, email)
+    if not referral_code:
+        raise HTTPException(status_code=404, detail="Реферальный код не найден")
+
+    # Возвращаем найденный реферальный код
+    return {
+        "code": referral_code.code,
+        "expiration_date": referral_code.expiration_date.date()
+    }
