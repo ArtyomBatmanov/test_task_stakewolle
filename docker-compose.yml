@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  # Сервис для приложения FastAPI
+  web:
+    build: .
+    command: uvicorn server.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер
+    ports:
+      - "8000:8000"  # Пробрасываем порт 8000 на хост
+    depends_on:
+      - db  # Ожидаем, что база данных будет запущена перед приложением
+      - redis  # Ожидаем, что Redis будет запущен перед приложением
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/stakewolle
+      - REDIS_URL=redis://redis:6379  # URL для подключения к Redis
+    networks:
+      - backend  # Подключаем к сети backend
+
+  # Сервис для базы данных PostgreSQL
+  db:
+    image: postgres:latest  # Используем официальный образ PostgreSQL
+    environment:
+      POSTGRES_USER: postgres  # Имя пользователя базы данных
+      POSTGRES_PASSWORD: postgres  # Пароль для базы данных
+      POSTGRES_DB: stakewolle  # Имя базы данных
+    ports:
+      - "5432:5432"  # Пробрасываем порт базы данных
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Монтируем том для данных PostgreSQL
+    networks:
+      - backend  # Подключаем к сети backend
+
+  # Сервис для Redis
+  redis:
+    image: redis:latest  # Используем официальный образ Redis
+    ports:
+      - "6379:6379"  # Пробрасываем порт Redis
+    networks:
+      - backend  # Подключаем к сети backend
+
+# Монтируем volume для хранения данных PostgreSQL
+volumes:
+  postgres_data:
+
+# Определяем сеть, в которой будут работать контейнеры
+networks:
+  backend:

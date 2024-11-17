@@ -6,10 +6,10 @@ from datetime import datetime, timedelta
 import os
 from dotenv import load_dotenv
 from passlib.context import CryptContext
-from models import User, ReferralCode
+from .models import User, ReferralCode
 from sqlalchemy.orm import Session
 from typing import Optional
-from database import get_db
+from .database import get_db
 from jose import JWTError, jwt
 
 load_dotenv()

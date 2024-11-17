@@ -3,11 +3,11 @@ import redis
 from typing import List
 from fastapi.openapi.utils import get_openapi
 from fastapi import FastAPI, HTTPException, Depends
-from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, \
+from .schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, \
     RegisterWithReferralCodeRequest, UserBase, ReferralCode
-from models import User
-from database import SessionLocal, get_db
-from crud import password_hash, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
+from .models import User
+from .database import SessionLocal, get_db
+from .crud import password_hash, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
     delete_referral_code, get_current_user, get_valid_referral_code, \
     create_user_with_referral, get_referrals_by_referrer_id
 from sqlalchemy.orm import Session
@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 app = FastAPI()
 
 # Подключение к Redis
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
+redis_client = redis.StrictRedis(host='redis', port=6379, db=0)
 
 
 # Кастомное OpenAPI
