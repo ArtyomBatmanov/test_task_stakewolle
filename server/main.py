@@ -1,17 +1,22 @@
+import json
+import redis
 from typing import List
 from fastapi.openapi.utils import get_openapi
 from fastapi import FastAPI, HTTPException, Depends
 from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, \
-    RegisterWithReferralCodeRequest, UserBase
+    RegisterWithReferralCodeRequest, UserBase, ReferralCode
 from models import User
 from database import SessionLocal, get_db
 from crud import password_hash, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
-    delete_referral_code, get_current_user, get_referral_code_by_email, get_valid_referral_code, \
+    delete_referral_code, get_current_user, get_valid_referral_code, \
     create_user_with_referral, get_referrals_by_referrer_id
 from sqlalchemy.orm import Session
 
 # Инициализация FastAPI
 app = FastAPI()
+
+# Подключение к Redis
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0, decode_responses=True)
 
 
 # Кастомное OpenAPI
@@ -117,22 +122,31 @@ async def delete_referral(
     return delete_referral_code(db, current_user.id)
 
 
-@app.get("/referral-code/{email}", response_model=ReferralCodeResponse, tags=["Referrals"],
-         summary="Получить реферальный код")
-async def get_referral_code(email: str, db: Session = Depends(get_db)):
+# Функция для получения реферального кода с кешированием в Redis
+@app.get("/referral-code/{email}", response_model=ReferralCode)
+async def get_referral_code_with_cache(email: str):
     """
-    Возвращает реферальный код по указанному email.
+      Получить реферальный код для указанного email. Сначала проверяется наличие реферального кода
+      в кеше Redis, если он найден — возвращается из кеша, если нет — генерируется новый код.
 
-    - **email**: Электронная почта пользователя.
+      - **email**: email пользователя, для которого требуется получить реферальный код.
     """
-    referral_code = get_referral_code_by_email(db, email)
-    if not referral_code:
-        raise HTTPException(status_code=404, detail="Реферальный код не найден")
 
-    return {
-        "code": referral_code.code,
-        "expiration_date": referral_code.expiration_date.date()
-    }
+    # Проверяем, есть ли уже реферальный код в кеше (Redis)
+    cached_referral_code = redis_client.get(f"referral_code:{email}")
+
+    if cached_referral_code:
+        # Если код найден в кеше, десериализуем его из JSON
+        return json.loads(cached_referral_code)
+
+    # Если кода нет в кеше, генерируем новый (для примера, просто код)
+    referral_code = ReferralCode(code="ABC123", email=email)
+
+    # Сохраняем код в Redis (срок хранения 3600 секунд, 1 час)
+    redis_client.setex(f"referral_code:{email}", 3600, referral_code.json())
+
+    # Возвращаем реферальный код
+    return referral_code
 
 
 @app.post("/register-with-referral", tags=["Referrals"], summary="Регистрация с реферальным кодом")

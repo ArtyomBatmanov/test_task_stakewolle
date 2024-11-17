@@ -48,3 +48,8 @@ class UserBase(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class ReferralCode(BaseModel):
+    code: str
+    email: str
