@@ -138,3 +138,8 @@ def create_user_with_referral(db: Session, email: str, password: str, referrer_i
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+def get_referrals_by_referrer_id(db: Session, referrer_id: int):
+    referrals = db.query(User).filter(User.referrer_id == referrer_id).all()
+    return referrals

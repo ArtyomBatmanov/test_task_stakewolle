@@ -39,3 +39,12 @@ class RegisterWithReferralCodeRequest(BaseModel):
     email: EmailStr
     password: str
     referral_code: Optional[str]  # Поле для ввода реферального кода
+
+
+class UserBase(BaseModel):
+    id: int
+    email: str
+    referrer_id: Optional[int]
+
+    class Config:
+        from_attributes = True

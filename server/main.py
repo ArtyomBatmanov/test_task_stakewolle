@@ -1,9 +1,13 @@
+from typing import List
+
 from fastapi import FastAPI, HTTPException, Depends
-from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, RegisterWithReferralCodeRequest
+from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, \
+    RegisterWithReferralCodeRequest, UserBase
 from models import User
 from database import SessionLocal, get_db
 from crud import password_hash, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
-    delete_referral_code, get_current_user, get_referral_code_by_email, get_valid_referral_code, create_user_with_referral
+    delete_referral_code, get_current_user, get_referral_code_by_email, get_valid_referral_code, \
+    create_user_with_referral, get_referrals_by_referrer_id
 from sqlalchemy.orm import Session
 
 # Инициализация FastAPI
@@ -118,3 +122,11 @@ def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session
     )
 
     return {"message": "Регистрация успешна", "user_id": new_user.id}
+
+
+@app.get("/referrals/{referrer_id}", response_model=List[UserBase])
+def get_referrals(referrer_id: int, db: Session = Depends(get_db)):
+    referrals = get_referrals_by_referrer_id(db, referrer_id)
+    if not referrals:
+        raise HTTPException(status_code=404, detail="No referrals found for this referrer_id")
+    return referrals
