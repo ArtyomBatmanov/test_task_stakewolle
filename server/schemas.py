@@ -1,5 +1,6 @@
 from pydantic import BaseModel, EmailStr
 from datetime import datetime, date
+from typing import Optional
 
 
 # Pydantic модель для запроса регистрации
@@ -33,3 +34,8 @@ class ReferralCodeResponse(BaseModel):
     class Config:
         from_attributes = True
 
+
+class RegisterWithReferralCodeRequest(BaseModel):
+    email: EmailStr
+    password: str
+    referral_code: Optional[str]  # Поле для ввода реферального кода

@@ -11,6 +11,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String, unique=True, index=True, nullable=False)
     password_hash = Column(String, nullable=False)
+    referrer_id = Column(Integer, ForeignKey("users.id"), nullable=True)  # Внешний ключ
     created_at = Column(DateTime, default=datetime.utcnow)
     referral_codes = relationship("ReferralCode", back_populates="user")
 

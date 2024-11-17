@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException, Depends
-from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse
+from schemas import RegisterRequest, LoginRequest, Token, ReferralCodeCreate, ReferralCodeResponse, RegisterWithReferralCodeRequest
 from models import User
 from database import SessionLocal, get_db
-from crud import hash_password, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
-    delete_referral_code, get_current_user, get_referral_code_by_email
+from crud import password_hash, create_jwt_token, verify_password, get_user_by_email, create_referral_code, \
+    delete_referral_code, get_current_user, get_referral_code_by_email, get_valid_referral_code, create_user_with_referral
 from sqlalchemy.orm import Session
 
 # Инициализация FastAPI
@@ -25,7 +25,7 @@ async def register_user(request: RegisterRequest):
     # Хешируем пароль и создаем пользователя
     new_user = User(
         email=request.email,
-        password_hash=hash_password(request.password)
+        password_hash=password_hash(request.password)
     )
     session.add(new_user)
     session.commit()
@@ -97,3 +97,24 @@ def get_referral_code(email: str, db: Session = Depends(get_db)):
         "code": referral_code.code,
         "expiration_date": referral_code.expiration_date.date()
     }
+
+
+@app.post("/register-with-referral")
+def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session = Depends(get_db)):
+    # Проверяем реферальный код, если он указан
+    referrer_id = None
+    if request.referral_code:
+        referral = get_valid_referral_code(db, request.referral_code)
+        if not referral:
+            raise HTTPException(status_code=400, detail="Недействительный или истекший реферальный код")
+        referrer_id = referral.user_id  # ID пользователя, связанного с реферальным кодом
+
+    # Регистрируем пользователя
+    new_user = create_user_with_referral(
+        db=db,
+        email=request.email,
+        password=request.password,
+        referrer_id=referrer_id
+    )
+
+    return {"message": "Регистрация успешна", "user_id": new_user.id}

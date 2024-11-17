@@ -48,7 +48,7 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(oauth2_
 
 
 # Функция для хеширования пароля
-def hash_password(password: str) -> str:
+def password_hash(password: str) -> str:
     return bcrypt.hash(password)
 
 
@@ -63,8 +63,8 @@ def create_jwt_token(user_id: int, email: str) -> str:
 
 
 # Функция для проверки пароля
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
+def verify_password(plain_password: str, password_hash: str) -> bool:
+    return pwd_context.verify(plain_password, password_hash)
 
 
 # Функция для получения пользователя по email
@@ -119,3 +119,22 @@ def get_referral_code_by_email(db: Session, email: str):
     # Найти активный реферальный код для найденного пользователя
     referral_code = db.query(ReferralCode).filter(ReferralCode.user_id == user.id).first()
     return referral_code
+
+
+def get_valid_referral_code(db: Session, code: str) -> ReferralCode:
+    return db.query(ReferralCode).filter(
+        ReferralCode.code == code,
+        ReferralCode.expiration_date >= datetime.utcnow()
+    ).first()
+
+
+def create_user_with_referral(db: Session, email: str, password: str, referrer_id: Optional[int] = None) -> User:
+    new_user = User(
+        email=email,
+        password_hash=password_hash(password),
+        referrer_id=referrer_id  # Указание реферера
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+    return new_user
