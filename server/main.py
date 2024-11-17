@@ -62,7 +62,7 @@ async def register_user(request: RegisterRequest):
 
 
 @app.post("/auth/login", response_model=Token, tags=["Authentication"], summary="Вход в систему")
-def login(
+async def login(
         login_request: LoginRequest,
         db: Session = Depends(get_db)
 ):
@@ -85,7 +85,7 @@ def login(
 
 
 @app.post("/referral-code/create", tags=["Referrals"], summary="Создать реферальный код")
-def create_referral(
+async def create_referral(
         referral_data: ReferralCodeCreate,
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
@@ -107,7 +107,7 @@ def create_referral(
 
 
 @app.delete("/referral-code/delete", tags=["Referrals"], summary="Удалить реферальный код")
-def delete_referral(
+async def delete_referral(
         db: Session = Depends(get_db),
         current_user: User = Depends(get_current_user)
 ):
@@ -119,7 +119,7 @@ def delete_referral(
 
 @app.get("/referral-code/{email}", response_model=ReferralCodeResponse, tags=["Referrals"],
          summary="Получить реферальный код")
-def get_referral_code(email: str, db: Session = Depends(get_db)):
+async def get_referral_code(email: str, db: Session = Depends(get_db)):
     """
     Возвращает реферальный код по указанному email.
 
@@ -136,7 +136,7 @@ def get_referral_code(email: str, db: Session = Depends(get_db)):
 
 
 @app.post("/register-with-referral", tags=["Referrals"], summary="Регистрация с реферальным кодом")
-def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session = Depends(get_db)):
+async def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session = Depends(get_db)):
     """
     Регистрирует пользователя по реферальному коду.
 
@@ -162,7 +162,7 @@ def register_with_referral(request: RegisterWithReferralCodeRequest, db: Session
 
 
 @app.get("/referrals/{referrer_id}", response_model=List[UserBase], tags=["Referrals"], summary="Получить рефералов")
-def get_referrals(referrer_id: int, db: Session = Depends(get_db)):
+async def get_referrals(referrer_id: int, db: Session = Depends(get_db)):
     """
     Возвращает список пользователей, которые зарегистрировались по реферальному коду указанного пользователя.
 
